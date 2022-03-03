@@ -17,10 +17,13 @@ interface User extends Bson.Document {
 let todos: Todo[] = [];
 
 router.get("/todos", async (ctx) => {
-  const todos = await getDb().collection("todos").find(); // { _id: ObjectId(), text: '...' }[]
-  const transformedTodos = todos.map((todo: Bson.Document, Index: Number) => {
-    return { id: todo._id.toString(), text: todo.text };
+  const todos = await getDb()
+    .collection("todos")
+    .find({}, { noCursorTimeout: false }); // { _id: ObjectId(), text: '...' }[]
+  const transformedTodos = todos.map((todo) => {
+    return { id: todo._id.$oid, text: todo.text };
   });
+  console.log(todos + "here");
   ctx.response.body = { todos: transformedTodos };
 });
 
@@ -28,7 +31,7 @@ router.post("/todos", async (ctx) => {
   const data = await ctx.request.body().value;
   const newTodo: Todo = {
     // id: new Date().toISOString(),
-    text: data.value.text,
+    text: data.text,
   };
 
   const id = await getDb().collection("todos").insertOne(newTodo);
@@ -39,18 +42,23 @@ router.post("/todos", async (ctx) => {
 });
 
 router.put("/todos/:todoId", async (ctx) => {
-  const tid = ctx.params.todoId;
+  const tid = ctx.params.todoId!;
   const data = await ctx.request.body().value;
-  const todoIndex = todos.findIndex((todo) => {
-    return todo.id === tid;
-  });
-  todos[todoIndex] = { id: todos[todoIndex].id, text: data.value.text };
+
+  await getDb()
+    .collection("todos")
+    .updateOne({ _id: new Bson.ObjectId(tid) }, { $set: { text: data.text } });
+
   ctx.response.body = { message: "Updated todo" };
 });
 
-router.delete("/todos/:todoId", (ctx) => {
-  const tid = ctx.params.todoId;
-  todos = todos.filter((todo) => todo.id !== tid);
+router.delete("/todos/:todoId", async (ctx) => {
+  const tid = ctx.params.todoId!;
+
+  await getDb()
+    .collection("todos")
+    .deleteOne({ _id: new Bson.ObjectId(tid) });
+
   ctx.response.body = { message: "Deleted todo" };
 });
 
