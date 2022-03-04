@@ -2,6 +2,9 @@ import { Router } from "https://deno.land/x/oak/mod.ts";
 import { Bson } from "https://deno.land/x/mongo@v0.29.0/mod.ts";
 
 import { getDb } from "../helpers/db_client.ts";
+// import { connect } from "../helpers/db_client.ts";
+
+// connect();
 
 const router = new Router();
 
@@ -14,16 +17,18 @@ interface User extends Bson.Document {
   text: string;
 }
 
-let todos: Todo[] = [];
+// let todos: Todo[] = [];
 
 router.get("/todos", async (ctx) => {
   const todos = await getDb()
     .collection("todos")
-    .find({}, { noCursorTimeout: false }); // { _id: ObjectId(), text: '...' }[]
-  const transformedTodos = todos.map((todo) => {
-    return { id: todo._id.$oid, text: todo.text };
+    .find({}, { noCursorTimeout: false })
+    .toArray(); // { _id: ObjectId(), text: '...' }[]  {}, { noCursorTimeout: false }
+  const transformedTodos = todos.map((todo: Bson.Document): Todo => {
+    return { id: todo._id.toString(), text: todo.text };
   });
-  console.log(todos + "here");
+  //console.log(todos + "here");
+  // console.log(transformedTodos);
   ctx.response.body = { todos: transformedTodos };
 });
 
@@ -44,6 +49,7 @@ router.post("/todos", async (ctx) => {
 router.put("/todos/:todoId", async (ctx) => {
   const tid = ctx.params.todoId!;
   const data = await ctx.request.body().value;
+  console.log();
 
   await getDb()
     .collection("todos")
